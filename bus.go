@@ -4,9 +4,15 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 )
+
+type initSubscribersListItem struct {
+	sub   SubscriberForBuild
+	order int64
+}
 
 type ApplicationBus struct {
 	subscribers      map[EventName][]Subscriber
@@ -29,7 +35,7 @@ func NewApplicationBus(ctx context.Context, awaitForGracefulStop time.Duration) 
 func (ab *ApplicationBus) ExecQuery(query Query) Query {
 	if subscribers, ok := ab.subscribers[query.Name()]; ok {
 		for _, subscriber := range subscribers {
-			q := subscriber.ExecQuery(query)
+			q := subscriber.ProcessQuery(query)
 			q.SetExecuted()
 			return q
 		}
@@ -40,7 +46,7 @@ func (ab *ApplicationBus) ExecQuery(query Query) Query {
 func (ab *ApplicationBus) ExecCommand(command Command) {
 	if subscribers, ok := ab.subscribers[command.Name()]; ok {
 		for _, subscriber := range subscribers {
-			subscriber.ExecCommand(command)
+			subscriber.ProcessCommand(command)
 			if command.IsStopPropagation() {
 				break
 			}
@@ -49,17 +55,32 @@ func (ab *ApplicationBus) ExecCommand(command Command) {
 }
 
 func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
-	for _, provider := range providers {
+	initList := make([]initSubscribersListItem, len(providers))
+	for idx, provider := range providers {
 		subscriber := provider(ab.ctx, ab)
 		for _, event := range subscriber.SupportedEvents() {
 			eventSubscribers := ab.subscribers[event.Name()]
 			eventSubscribers = append(eventSubscribers, subscriber)
 			ab.subscribers[event.Name()] = eventSubscribers
 		}
+		initList[idx] = initSubscribersListItem{
+			sub:   subscriber,
+			order: subscriber.InitOrder(),
+		}
 		ch := subscriber.IamStopChan()
 		if ch != nil {
 			ab.needAwaitStops = append(ab.needAwaitStops, ch)
 		}
+	}
+	ab.init(initList)
+}
+
+func (ab *ApplicationBus) init(list []initSubscribersListItem) {
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].order < list[j].order
+	})
+	for _, subscriber := range list {
+		subscriber.sub.AfterBusBuild()
 	}
 }
 
