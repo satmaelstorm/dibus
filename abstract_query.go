@@ -1,18 +1,12 @@
 package dibus
 
-import "reflect"
-
 type AbstractQuery struct {
 	executed bool
 	name     EventName
 }
 
 func (a *AbstractQuery) Name() EventName {
-	if a.name == "" {
-		ref := reflect.TypeOf(a)
-		a.name = EventName(ref.PkgPath() + "/" + ref.Name())
-	}
-	return a.name
+	panic("implement me")
 }
 
 func (a *AbstractQuery) SetExecuted() {

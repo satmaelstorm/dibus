@@ -1,18 +1,12 @@
 package dibus
 
-import "reflect"
-
 type AbstractCommand struct {
 	stopPropagation bool
 	name            EventName
 }
 
 func (a *AbstractCommand) Name() EventName {
-	if a.name == "" {
-		ref := reflect.TypeOf(a)
-		a.name = EventName(ref.PkgPath() + "_" + ref.Name())
-	}
-	return a.name
+	panic("implement me")
 }
 
 func (a *AbstractCommand) IsStopPropagation() bool {
