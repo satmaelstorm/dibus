@@ -5,19 +5,23 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"sync"
 	"syscall"
 	"time"
 )
 
 type initSubscribersListItem struct {
-	sub   SubscriberForBuild
-	order int64
+	sub      SubscriberForBuild
+	order    int64
+	callback func()
 }
 
+// BusOptions - options for Build Bus
 type BusOptions struct {
 	AwaitForGracefulStop time.Duration
 }
 
+// ApplicationBus - realization of Bus
 type ApplicationBus struct {
 	subscribers      map[EventName][]Subscriber
 	needAwaitStops   []<-chan struct{}
@@ -27,6 +31,7 @@ type ApplicationBus struct {
 	signalChannel    chan os.Signal
 }
 
+// NewApplicationBus - ApplicationBus constructor
 func NewApplicationBus(ctx context.Context, opts BusOptions) *ApplicationBus {
 	ctxInner, cancel := context.WithCancel(ctx)
 	return &ApplicationBus{
@@ -38,6 +43,7 @@ func NewApplicationBus(ctx context.Context, opts BusOptions) *ApplicationBus {
 	}
 }
 
+// ExecQuery executes a query by finding its corresponding subscribers and processing it
 func (ab *ApplicationBus) ExecQuery(query Query) Query {
 	if subscribers, ok := ab.subscribers[query.Name()]; ok {
 		for _, subscriber := range subscribers {
@@ -60,21 +66,46 @@ func (ab *ApplicationBus) ExecCommand(command Command) {
 	}
 }
 
+func (ab *ApplicationBus) ExecMultiQuery(queries ...Query) []Query {
+	if len(queries) == 0 {
+		return nil
+	}
+
+	wg := new(sync.WaitGroup)
+	wg.Add(len(queries))
+
+	for _, query := range queries {
+		go func(q Query) {
+			defer wg.Done()
+			ab.ExecQuery(q)
+		}(query)
+	}
+
+	wg.Wait()
+	return queries
+}
+
 func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
 	ab.selfSubscribe()
 	initList := make([]initSubscribersListItem, len(providers))
 	for idx, provider := range providers {
 		subscriber := provider(ab.ctx, ab)
-		for _, event := range subscriber.SupportedEvents() {
-			eventSubscribers := ab.subscribers[event.Name()]
-			eventSubscribers = append(eventSubscribers, subscriber)
-			ab.subscribers[event.Name()] = eventSubscribers
+		opts := subscriber.GetBuildOptions()
+		if opts.SupportedEvents != nil && len(opts.SupportedEvents) > 0 {
+			for _, event := range opts.SupportedEvents {
+				eventSubscribers := ab.subscribers[event.Name()]
+				eventSubscribers = append(eventSubscribers, subscriber)
+				ab.subscribers[event.Name()] = eventSubscribers
+			}
 		}
+
 		initList[idx] = initSubscribersListItem{
-			sub:   subscriber,
-			order: subscriber.InitOrder(),
+			sub:      subscriber,
+			order:    opts.InitOrder,
+			callback: opts.AfterBusBuildCallback,
 		}
-		ch := subscriber.IamStopChan()
+
+		ch := opts.ImStoppedChannel
 		if ch != nil {
 			ab.needAwaitStops = append(ab.needAwaitStops, ch)
 		}
@@ -92,7 +123,9 @@ func (ab *ApplicationBus) init(list []initSubscribersListItem) {
 		return list[i].order < list[j].order
 	})
 	for _, subscriber := range list {
-		subscriber.sub.AfterBusBuild()
+		if nil != subscriber.callback {
+			subscriber.callback()
+		}
 	}
 }
 
@@ -143,8 +176,4 @@ func (ab *ApplicationBus) ProcessCommand(command Command) {
 	case *BusStopCommand:
 		ab.shutdown()
 	}
-}
-
-func (ab *ApplicationBus) IamStopChan() <-chan struct{} {
-	return nil
 }

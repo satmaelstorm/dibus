@@ -1,46 +1,44 @@
 package dibus
 
+// Event - just Event
 type Event interface {
 	Name() EventName
 }
 
+// Query - semantic type. Query can perform read-only operations
+// Processor of Query MUST return this Query and MAY set in Query result
 type Query interface {
 	Event
 	SetExecuted()
 }
 
+// Command - semantic type. Commands can perform write (change) operations
+// and returns nothing.
 type Command interface {
 	Event
 	IsStopPropagation() bool
 }
 
+// SubscriberForBuild - uses for Build only
 type SubscriberForBuild interface {
 	Subscriber
 
-	// InitOrder return order of call AfterBusBuild
-	// less - earlier
-	InitOrder() int64
-
-	// AfterBusBuild call when bus is built
-	// If you need init some dependencies, you can Query them from other Subscriber's
-	AfterBusBuild()
-
-	// SupportedEvents - list of supported events
-	SupportedEvents() []Event
+	// GetBuildOptions returns options for Bus.Build()
+	GetBuildOptions() SubscriberOptions
 }
 
+// Subscriber - it is Subscriber and nothing more
 type Subscriber interface {
 	// ProcessQuery - execute query, set query result and return this (or another, if needed) Query
 	ProcessQuery(query Query) Query
 
 	// ProcessCommand - execute command
 	ProcessCommand(command Command)
-
-	// IamStopChan - returns the channel from which the bus will wait for a signal during a graceful shutdown
-	IamStopChan() <-chan struct{}
 }
 
+// Bus - interface for ApplicationBus
 type Bus interface {
 	ExecQuery(query Query) Query
 	ExecCommand(command Command)
+	ExecMultiQuery(queries ...Query) []Query
 }
