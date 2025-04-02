@@ -3,7 +3,7 @@ package dibus
 type AbstractQueryExecutor struct {
 }
 
-func (a *AbstractQueryExecutor) ProcessQuery(query Query) Query {
+func (a *AbstractQueryExecutor) ProcessQuery(query Query) QueryResult {
 	panic("implement me")
 }
 

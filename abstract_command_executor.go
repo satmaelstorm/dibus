@@ -3,7 +3,7 @@ package dibus
 type AbstractCommandExecutor struct {
 }
 
-func (a *AbstractCommandExecutor) ProcessQuery(query Query) Query {
+func (a *AbstractCommandExecutor) ProcessQuery(query Query) QueryResult {
 	panic("don't call me")
 }
 

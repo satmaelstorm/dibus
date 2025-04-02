@@ -27,9 +27,9 @@ func (bts *busTestSuite) TestQuery() {
 	bus.Build(provideTSubscriber)
 
 	query := &tQuery{}
-	bus.ExecQuery(query)
+	queryResult, _ := ExecQueryWrapper[int](bus, query)
 
-	bts.Assert().Equal(10, query.QueryResult)
+	bts.Assert().Equal(10, queryResult)
 }
 
 func (bts *busTestSuite) TestCommand() {
@@ -41,24 +41,24 @@ func (bts *busTestSuite) TestCommand() {
 	}
 	bus.ExecCommand(command)
 	query := &tQuery{}
-	bus.ExecQuery(query)
+	queryResult, _ := ExecQueryWrapper[int](bus, query)
 
-	bts.Assert().Equal(1, query.QueryResult)
+	bts.Assert().Equal(1, queryResult)
 }
 
 func (bts *busTestSuite) TestMultiQuery() {
 	bus := NewApplicationBus(context.Background(), BusOptions{AwaitForGracefulStop: time.Second})
 	bus.Build(provideTSubscriber)
 
-	query1 := &tQuery{}
-	query2 := &tQuery{}
-	query3 := &tQuery{}
+	query1 := &tQuery{additional: 1}
+	query2 := &tQuery{additional: 10}
+	query3 := &tQuery{additional: 100}
 
-	bus.ExecMultiQuery(query3, query2, query1)
+	results := bus.ExecMultiQuery(query3, query2, query1)
 
-	bts.Assert().Equal(10, query3.QueryResult)
-	bts.Assert().Equal(10, query2.QueryResult)
-	bts.Assert().Equal(10, query1.QueryResult)
+	bts.Assert().Equal(11, results[2].(int))
+	bts.Assert().Equal(20, results[1].(int))
+	bts.Assert().Equal(110, results[0].(int))
 }
 
 // Test Subscribers and Events
@@ -75,11 +75,10 @@ type tSubscriber struct {
 	bus Bus
 }
 
-func (t *tSubscriber) ProcessQuery(query Query) Query {
+func (t *tSubscriber) ProcessQuery(query Query) QueryResult {
 	switch q := query.(type) {
 	case *tQuery:
-		q.QueryResult = t.val
-		return q
+		return t.val + q.additional
 	default:
 		panic("unknown query type")
 	}
@@ -107,7 +106,7 @@ func (t *tSubscriber) GetBuildOptions() SubscriberOptions {
 
 type tQuery struct {
 	AbstractQuery
-	QueryResult int
+	additional int
 }
 
 func (t *tQuery) Name() EventName {

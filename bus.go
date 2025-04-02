@@ -16,6 +16,11 @@ type initSubscribersListItem struct {
 	callback func()
 }
 
+type multiQueryResultTransport struct {
+	idx int
+	qr  QueryResult
+}
+
 // BusOptions - options for Build Bus
 type BusOptions struct {
 	AwaitForGracefulStop time.Duration
@@ -44,15 +49,15 @@ func NewApplicationBus(ctx context.Context, opts BusOptions) *ApplicationBus {
 }
 
 // ExecQuery executes a query by finding its corresponding subscribers and processing it
-func (ab *ApplicationBus) ExecQuery(query Query) Query {
+func (ab *ApplicationBus) ExecQuery(query Query) QueryResult {
 	if subscribers, ok := ab.subscribers[query.Name()]; ok {
 		for _, subscriber := range subscribers {
-			q := subscriber.ProcessQuery(query)
-			q.SetExecuted()
-			return q
+			qr := subscriber.ProcessQuery(query)
+			query.SetExecuted()
+			return qr
 		}
 	}
-	return query
+	return nil
 }
 
 func (ab *ApplicationBus) ExecCommand(command Command) {
@@ -66,23 +71,36 @@ func (ab *ApplicationBus) ExecCommand(command Command) {
 	}
 }
 
-func (ab *ApplicationBus) ExecMultiQuery(queries ...Query) []Query {
-	if len(queries) == 0 {
+func (ab *ApplicationBus) ExecMultiQuery(queries ...Query) []QueryResult {
+	cnt := len(queries)
+	if cnt == 0 {
 		return nil
 	}
 
-	wg := new(sync.WaitGroup)
-	wg.Add(len(queries))
+	resultChan := make(chan multiQueryResultTransport, cnt)
 
-	for _, query := range queries {
-		go func(q Query) {
+	wg := new(sync.WaitGroup)
+	wg.Add(cnt)
+
+	for i, query := range queries {
+		go func(idx int, q Query) {
 			defer wg.Done()
-			ab.ExecQuery(q)
-		}(query)
+			resultChan <- multiQueryResultTransport{
+				idx: idx,
+				qr:  ab.ExecQuery(q),
+			}
+		}(i, query)
 	}
 
 	wg.Wait()
-	return queries
+	close(resultChan)
+
+	results := make([]QueryResult, cnt)
+	for r := range resultChan {
+		results[r.idx] = r.qr
+	}
+
+	return results
 }
 
 func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
@@ -167,7 +185,7 @@ func (ab *ApplicationBus) shutdown() {
 	}
 }
 
-func (ab *ApplicationBus) ProcessQuery(query Query) Query {
+func (ab *ApplicationBus) ProcessQuery(query Query) QueryResult {
 	return query
 }
 

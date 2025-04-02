@@ -6,11 +6,13 @@ type Event interface {
 }
 
 // Query - semantic type. Query can perform read-only operations
-// Processor of Query MUST return this Query and MAY set in Query result
 type Query interface {
 	Event
 	SetExecuted()
 }
+
+// QueryResult - semantic type. Result of query.
+type QueryResult interface{}
 
 // Command - semantic type. Commands can perform write (change) operations
 // and returns nothing.
@@ -30,7 +32,7 @@ type SubscriberForBuild interface {
 // Subscriber - it is Subscriber and nothing more
 type Subscriber interface {
 	// ProcessQuery - execute query, set query result and return this (or another, if needed) Query
-	ProcessQuery(query Query) Query
+	ProcessQuery(query Query) QueryResult
 
 	// ProcessCommand - execute command
 	ProcessCommand(command Command)
@@ -38,7 +40,7 @@ type Subscriber interface {
 
 // Bus - interface for ApplicationBus
 type Bus interface {
-	ExecQuery(query Query) Query
+	ExecQuery(query Query) QueryResult
 	ExecCommand(command Command)
-	ExecMultiQuery(queries ...Query) []Query
+	ExecMultiQuery(queries ...Query) []QueryResult
 }
