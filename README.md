@@ -1,6 +1,21 @@
 # diBus
 Dependency Injection Bus
 
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
+
+## Table of Contents
+- [Core Concepts](#core-concepts)
+- [Bus](#bus)
+- [Subscribers](#subscribers)
+- [Events](#events)
+    - [Commands](#commands)
+    - [Queries](#queries)
+- [Building the Bus](#how-to-build-bus)
+- [Execution](#executing-commands-and-queries)
+- [Lifecycle](#built-in-commands)
+- [Shutdown](#shutdown-process)
+- [Dependencies](#what-about-dependencies)
+
 A fresh approach to dependency injection: everything is simply Subscribers and Events.
 Following the Command-Query Separation principle:
 * Commands perform actions (no return value)
@@ -14,6 +29,8 @@ At the core of this approach are three simple concepts that work together to kee
 * Bus
 * Subscribers
 * Events (Queries and Commands)
+
+All code examples are from the `bus_test.go` test — there you can check how it all works.
 
 ## Bus
 Creating a bus is straightforward - just provide a context and configuration:
