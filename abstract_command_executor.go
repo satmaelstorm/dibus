@@ -13,9 +13,8 @@ func (a *AbstractCommandExecutor) ProcessCommand(command Command) {
 
 func (a *AbstractCommandExecutor) GetBuildOptions() SubscriberOptions {
 	return SubscriberOptions{
-		InitOrder:             0,
-		ImStoppedChannel:      nil,
-		AfterBusBuildCallback: nil,
-		SupportedEvents:       nil,
+		Order:            0,
+		ImStoppedChannel: nil,
+		SupportedEvents:  nil,
 	}
 }

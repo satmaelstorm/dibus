@@ -10,12 +10,6 @@ import (
 	"time"
 )
 
-type initSubscribersListItem struct {
-	sub      SubscriberForBuild
-	order    int64
-	callback func()
-}
-
 type multiQueryResultTransport struct {
 	idx int
 	qr  QueryResult
@@ -105,9 +99,19 @@ func (ab *ApplicationBus) ExecMultiQuery(queries ...Query) []QueryResult {
 
 func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
 	ab.selfSubscribe()
-	initList := make([]initSubscribersListItem, len(providers))
+
+	subscribers := make([]SubscriberForBuild, len(providers))
+	subscriberOrders := make([]int64, len(providers))
 	for idx, provider := range providers {
-		subscriber := provider(ab.ctx, ab)
+		subscribers[idx] = provider(ab.ctx, ab)
+		subscriberOrders[idx] = subscribers[idx].GetBuildOptions().Order
+	}
+
+	sort.Slice(subscribers, func(i, j int) bool {
+		return subscriberOrders[i] < subscriberOrders[j]
+	})
+
+	for _, subscriber := range subscribers {
 		opts := subscriber.GetBuildOptions()
 		if opts.SupportedEvents != nil && len(opts.SupportedEvents) > 0 {
 			for _, event := range opts.SupportedEvents {
@@ -117,34 +121,18 @@ func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
 			}
 		}
 
-		initList[idx] = initSubscribersListItem{
-			sub:      subscriber,
-			order:    opts.InitOrder,
-			callback: opts.AfterBusBuildCallback,
-		}
-
 		ch := opts.ImStoppedChannel
 		if ch != nil {
 			ab.needAwaitStops = append(ab.needAwaitStops, ch)
 		}
 	}
-	ab.init(initList)
+
+	ab.ExecCommand(&BusInitializedCommand{})
 }
 
 func (ab *ApplicationBus) selfSubscribe() {
 	stopEvent := &BusStopCommand{}
 	ab.subscribers[stopEvent.Name()] = []Subscriber{ab}
-}
-
-func (ab *ApplicationBus) init(list []initSubscribersListItem) {
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].order < list[j].order
-	})
-	for _, subscriber := range list {
-		if nil != subscriber.callback {
-			subscriber.callback()
-		}
-	}
 }
 
 func (ab *ApplicationBus) Run() {

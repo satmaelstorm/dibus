@@ -4,12 +4,9 @@ package dibus
 // ApplicationBus read SubscriberOptions only once in Build process.
 // Read-only Value Object.
 type SubscriberOptions struct {
-	// InitOrder - the order in which callbacks are called
+	// Order - the order in which subscriber called
 	// Less - earlier
-	InitOrder int64
-
-	// AfterBusBuildCallback - callbacks are called after Build
-	AfterBusBuildCallback func()
+	Order int64
 
 	// ImStoppedChannel - a channel in which a subscriber can notify the bus
 	// that it has completed gracefully. Needed for graceful shutdown.
