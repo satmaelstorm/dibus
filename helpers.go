@@ -12,11 +12,11 @@ func FormEventName(caller any) EventName {
 func ExecQueryWrapper[T any](bus Bus, q Query) (T, error) {
 	qr := bus.ExecQuery(q)
 	if qr == nil {
-		return *new(T), ErrSubscriberResultTypeMismatch
+		return *new(T), ErrSubscribersForQueryNotFound
 	}
 	r, ok := qr.(T)
 	if !ok {
-		return r, ErrSubscribersForQueryNotFound
+		return r, ErrSubscriberResultTypeMismatch
 	}
 	return r, nil
 }
