@@ -2,7 +2,6 @@ package dibus
 
 type AbstractQuery struct {
 	executed bool
-	name     EventName
 }
 
 func (a *AbstractQuery) Name() EventName {

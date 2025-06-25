@@ -113,7 +113,7 @@ func (ab *ApplicationBus) Build(providers ...SubscriberProvider) {
 
 	for _, subscriber := range subscribers {
 		opts := subscriber.GetBuildOptions()
-		if opts.SupportedEvents != nil && len(opts.SupportedEvents) > 0 {
+		if len(opts.SupportedEvents) > 0 {
 			for _, event := range opts.SupportedEvents {
 				eventSubscribers := ab.subscribers[event.Name()]
 				eventSubscribers = append(eventSubscribers, subscriber)
@@ -151,7 +151,7 @@ func (ab *ApplicationBus) BuildAndRun(providers ...SubscriberProvider) {
 }
 
 func (ab *ApplicationBus) shutdown() {
-	ab.cancel()
+	defer ab.cancel()
 	ctx, cancel := context.WithTimeout(context.Background(), ab.awaitStopTimeout)
 	defer cancel()
 	defer close(ab.signalChannel)

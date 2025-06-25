@@ -2,9 +2,10 @@ package dibus
 
 import (
 	"context"
-	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type busTestSuite struct {
@@ -143,6 +144,8 @@ func BenchmarkBuild100Subscriber(b *testing.B) {
 		bus.Build(providers...)
 	}
 }
+
+// make benchmark for tQuery
 
 // Test Subscribers and Events
 

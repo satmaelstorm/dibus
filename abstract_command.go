@@ -2,7 +2,6 @@ package dibus
 
 type AbstractCommand struct {
 	stopPropagation bool
-	name            EventName
 }
 
 func (a *AbstractCommand) Name() EventName {
