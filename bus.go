@@ -151,6 +151,7 @@ func (ab *ApplicationBus) BuildAndRun(providers ...SubscriberProvider) {
 }
 
 func (ab *ApplicationBus) shutdown() {
+	ab.ExecCommand(&BusStopCommand{})
 	defer ab.cancel()
 	ctx, cancel := context.WithTimeout(context.Background(), ab.awaitStopTimeout)
 	defer cancel()
