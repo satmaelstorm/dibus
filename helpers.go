@@ -20,3 +20,15 @@ func ExecQueryWrapper[T any](bus Bus, q Query) (T, error) {
 	}
 	return r, nil
 }
+
+func MustExecQueryWrapper[T any](bus Bus, q Query) T {
+	qr := bus.ExecQuery(q)
+	if qr == nil {
+		panic(ErrSubscribersForQueryNotFound)
+	}
+	r, ok := qr.(T)
+	if !ok {
+		panic(ErrSubscriberResultTypeMismatch)
+	}
+	return r
+}
