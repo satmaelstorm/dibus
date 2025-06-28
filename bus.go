@@ -28,6 +28,7 @@ type ApplicationBus struct {
 	ctx              context.Context
 	cancel           context.CancelFunc
 	signalChannel    chan os.Signal
+	stopChannel      chan struct{}
 }
 
 // NewApplicationBus - ApplicationBus constructor
@@ -39,6 +40,7 @@ func NewApplicationBus(ctx context.Context, opts BusOptions) *ApplicationBus {
 		ctx:              ctxInner,
 		cancel:           cancel,
 		signalChannel:    make(chan os.Signal, 1),
+		stopChannel:      make(chan struct{}),
 	}
 }
 
@@ -139,10 +141,11 @@ func (ab *ApplicationBus) Run() {
 	signal.Notify(ab.signalChannel, os.Interrupt, syscall.SIGTERM)
 	go func(ch <-chan os.Signal) {
 		<-ch
-		ab.shutdown()
+		ab.cancel()
+		ab.ExecCommand(&BusStopCommand{})
 	}(ab.signalChannel)
 
-	<-ab.ctx.Done()
+	<-ab.stopChannel
 }
 
 func (ab *ApplicationBus) BuildAndRun(providers ...SubscriberProvider) {
@@ -151,8 +154,10 @@ func (ab *ApplicationBus) BuildAndRun(providers ...SubscriberProvider) {
 }
 
 func (ab *ApplicationBus) shutdown() {
-	ab.ExecCommand(&BusStopCommand{})
-	defer ab.cancel()
+	defer func() {
+		ab.stopChannel <- struct{}{}
+	}()
+
 	ctx, cancel := context.WithTimeout(context.Background(), ab.awaitStopTimeout)
 	defer cancel()
 	defer close(ab.signalChannel)
