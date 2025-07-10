@@ -2,6 +2,7 @@ package dibus
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"sort"
@@ -184,8 +185,11 @@ func (ab *ApplicationBus) ProcessQuery(query Query) QueryResult {
 }
 
 func (ab *ApplicationBus) ProcessCommand(command Command) {
-	switch command.(type) {
+	switch c := command.(type) {
 	case *BusStopCommand:
+		if c.Err != nil {
+			log.Fatalf("Stop with error: %s\n", c.Err.Error())
+		}
 		ab.shutdown()
 	}
 }
